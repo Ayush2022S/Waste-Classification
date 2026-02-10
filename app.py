@@ -1,45 +1,37 @@
 import streamlit as st
 import tensorflow as tf
-import cv2
 import numpy as np
-from tensorflow.keras.preprocessing import image
+from PIL import Image
 
 model = tf.keras.models.load_model("waste_model.h5")
 
-st.title("Organic vs Recyclable Classifier")
+st.set_page_config(page_title="Waste Classification", layout="centered")
 
-option = st.selectbox("Choose Input Mode", ["Upload Image", "Use Webcam"])
+st.title("♻️ Waste Classification System")
+st.write("Classifies waste into **Organic** or **Recyclable**")
 
-if option == "Upload Image":
-    uploaded = st.file_uploader("Upload Waste Image")
+uploaded_file = st.file_uploader(
+    "Upload a waste image",
+    type=["jpg", "jpeg", "png"]
+)
 
-    if uploaded:
-        file_bytes = np.asarray(bytearray(uploaded.read()), dtype=np.uint8)
-        img = cv2.imdecode(file_bytes, 1)
-        img = cv2.resize(img, (224,224))
+if uploaded_file is not None:
+    # Read image using PIL
+    image = Image.open(uploaded_file).convert("RGB")
+    image = image.resize((224, 224))
 
-        img_array = image.img_to_array(img)/255.0
-        img_array = np.expand_dims(img_array, axis=0)
+    img_array = np.array(image) / 255.0
+    img_array = np.expand_dims(img_array, axis=0)
 
-        prediction = model.predict(img_array)[0][0]
-        label = "Organic" if prediction < 0.5 else "Recyclable"
+    prediction = model.predict(img_array)[0][0]
 
-        st.image(img, channels="BGR")
-        st.write("Prediction:", label)
+    if prediction < 0.5:
+        label = "Organic Waste ♻️"
+        confidence = (1 - prediction) * 100
+    else:
+        label = "Recyclable Waste 🔄"
+        confidence = prediction * 100
 
-else:
-    cam = st.camera_input("Take a photo")
-
-    if cam:
-        file_bytes = np.asarray(bytearray(cam.read()), dtype=np.uint8)
-        img = cv2.imdecode(file_bytes, 1)
-        img = cv2.resize(img, (224,224))
-
-        img_array = image.img_to_array(img)/255.0
-        img_array = np.expand_dims(img_array, axis=0)
-
-        prediction = model.predict(img_array)[0][0]
-        label = "Organic" if prediction < 0.5 else "Recyclable"
-
-        st.image(img, channels="BGR")
-        st.write("Prediction:", label)
+    st.image(image, caption="Uploaded Image", use_column_width=True)
+    st.success(f"**Prediction:** {label}")
+    st.info(f"**Confidence:** {confidence:.2f}%")
